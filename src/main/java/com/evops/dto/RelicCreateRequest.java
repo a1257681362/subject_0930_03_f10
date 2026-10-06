@@ -29,5 +29,8 @@ public class RelicCreateRequest {
     @NotBlank(message = "保存等级不能为空")
     private String preservationGrade;
 
+    /** 所属馆区编码，留空按主馆区 MAIN；借阅审批的保险资料按馆区隔离 */
+    private String campusCode;
+
     private String description;
 }

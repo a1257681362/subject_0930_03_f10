@@ -521,3 +521,92 @@ mvn test
 文物置为无效（REVOKED）后页面/导出/后台统计默认同口径剔除、
 `includeRevoked=true` 三端同样保留并标明 REVOKED、页面行数=导出行数、页面工时总量=统计总量；
 台账全动作留痕（TS_SUBMIT/TS_RETURN/TS_APPROVE/RESCHEDULE_SUGGEST）。
+
+## 文物借阅审批（museum-10）
+
+文物按**保护等级**配置**可借阅场景、最高借阅时长、审批角色**；提交借阅申请时
+**校验当前展陈计划（展出中须先撤展）与修复状态（立项/修复中不可借）**；
+**一级高风险文物必须在常规审批链后追加馆长本人签名**；审批全部通过后生成
+**不可变借阅快照**；**归还延期必须重新走完整审批链**；**审批人不能查看不属于
+自己馆区的完整保险资料**（跨馆区保险金额脱敏，不返回任何数字）。修复验收
+**附条件通过（部分成功）**时，保护等级补偿与借阅补偿**成对开立、互持 id、
+联动闭环**。
+
+### 借阅审批规则
+
+- **按等级的借阅策略**（`t_borrow_grade_policy`，一等级一行当前值）：可借阅场景、
+  最高时长（自然日）、有序审批角色（馆藏部 `BORROW_DEPT` / 馆藏主管
+  `COLLECTION_LEADER` / 馆长 `DIRECTOR`）、高风险是否追加馆长签名。
+  默认：一级限馆外展览/学术交流、30 天、双签后**必须馆长签名**；二级 60 天双签；
+  三级 90 天单签。策略调整只影响**之后提交**的申请——申请提交时把等级、馆区、
+  角色链、馆长要求、场景、时长、保险金额全部固化（快照口径与规则版本一致）。
+- **申请校验**：文物在档；无在途旧借出/未闭环借展协议/未闭环借阅申请；
+  不在当前展陈计划（`t_hall_relic=ON_DISPLAY`，须先撤展）；无立项/修复中项目；
+  场景必须在等级策略允许范围内；时长（按计划出库到预计归还的自然日差）不得超上限。
+- **顺序审批**（`t_borrow_approval_record`，只追加，`uk(application_id, extension_id, step_no)`）：
+  按固化角色顺序逐人签署，错序/越级拒绝；驳回必填意见且任一驳回即终止
+  （申请置 `REJECTED`，无快照）；高风险链在常规角色后追加一步馆长角色签名，
+  该步 `director_sign=1`，全部通过才 `APPROVED`。
+- **借阅快照**（`t_borrow_snapshot`，一件申请一份，不可变）：固化文物档案、
+  借用方、场景/期限/保险、完整审批链文本与馆长签名人。
+- **出库与归还**：`APPROVED → BORROWED` 出库前复查展陈/修复/提前收回补偿，
+  贯通写一条 `t_relic_loan(LENT)`，继续复用 museum-1 跨业务占用校验；
+  `BORROWED → RETURNED` 在原单闭环并同步归还贯通借出单。
+- **归还延期重新审批**（`t_borrow_extension`，申请内序号递增）：只有在借可申请，
+  新期限必须晚于当前应还，同一申请同时只允许一条重审中延期；延期重走**完整**
+  审批链（高风险仍须馆长签名），通过才回写申请与贯通借出单的应还时间，
+  驳回/撤销**不改原应还时间**；借阅归还时审批中的延期单自动驳回。
+- **保险资料馆区隔离**：文物带 `campus_code`（建档指定，默认主馆区 MAIN）。
+  申请列表/详情/快照/借阅补偿查询均带 `viewerCampus`：同馆区返回完整保险金额
+  （`insuranceViewable=true`），非同馆区或未声明馆区时保险金额置空、
+  `insuranceViewable=false`，不返回任何保险数字。
+
+### 部分成功补偿规则
+
+- 修复验收 **CONDITIONAL（附条件通过＝部分成功）必须登记验收后保护等级**：
+  验收即把等级调整落到文物档案，并开立一条保护等级补偿
+  （`t_repair_grade_compensation`，一项目一条，固化等级前/后，单号 `GC-000001`）。
+- **与借阅补偿一一对应**（`t_borrow_compensation`，单号 `BC-000001`，两表互持 id）：
+  - 在借/已批准待出库借阅 → `RECALL` 提前收回：补偿未闭环**禁止出库**，
+    文物收回（归还或撤销借阅）后借阅补偿方可闭环；
+  - 无在途但有最近一次**已归还**借阅 → `SUPPLEMENT_CONFIRM` 等级与保险差异补充确认
+    （可登记确认后保险金额）；
+  - 审批中的借阅申请按新等级口径**直接驳回**（策略快照失效，须重新申请），
+    不形成补偿单；无任何借阅时只开立等级补偿。
+- **联动闭环顺序**：成对借阅补偿必须先闭环，保护等级补偿才允许确认；
+  确认时可给出最终等级（再次更正文物档案），缺省按验收调整后等级确认。
+- 借阅归还时未闭环的借阅补偿随归还自动闭环留痕；补偿开立/闭环、
+  借阅驳回全部只追加写入 `t_relic_ledger`（GRADE_COMP_OPEN/BORROW_COMP_OPEN/
+  GRADE_COMP_RESOLVE/BORROW_COMP_RESOLVE 等）。
+
+### 借阅与补偿接口
+
+| 方法与路径 | 作用 |
+| --- | --- |
+| `GET /api/borrow-policies` / `PUT /api/borrow-policies/{grade}` | 查看/调整各保护等级借阅策略当前值（只影响新申请） |
+| `POST /api/relics/{id}/borrow-applications` | 提交借阅申请（校验展陈计划/修复状态/场景/时长，固化策略快照） |
+| `GET /api/borrow-applications?relicId=&status=&viewerCampus=` | 申请列表（保险金额按馆区脱敏） |
+| `GET /api/borrow-applications/{id}?viewerCampus=` | 申请详情：审批链/借阅快照/历次延期重审链（保险脱敏） |
+| `POST /api/borrow-applications/{id}/approvals` | 原申请链顺序审批（高风险末步馆长签名；驳回必填意见） |
+| `POST /api/borrow-applications/{id}/lend` | 批准后出库（复查展陈/修复，RECALL 未闭环禁出），贯通写借出记录 |
+| `POST /api/borrow-applications/{id}/return` | 归还闭环（审批中延期自动驳回，RECALL 补偿随归还闭环） |
+| `POST /api/borrow-applications/{id}/cancel` | 撤销申请（PENDING；有提前收回补偿时 APPROVED 未出库也可撤） |
+| `POST /api/borrow-applications/{id}/extensions` | 归还延期申请（在借、晚于当前应还，重新走完整审批链） |
+| `POST /api/borrow-extensions/{extensionId}/approvals` | 延期重审链签署（高风险仍须馆长签名） |
+| `GET/POST /api/repair-grade-compensations[/{id}/resolve]` | 等级补偿列表/详情/闭环确认（成对借阅补偿先闭环） |
+| `GET/POST /api/borrow-compensations[/{id}/resolve]?viewerCampus=` | 借阅补偿列表/详情（保险按馆区脱敏）/RECALL 或补充确认闭环 |
+| `POST /api/repair-projects/{id}/accept` | 验收：`result=CONDITIONAL` 时必带 `gradeAfter`，触发成对补偿 |
+
+### 测试
+
+`BorrowApprovalTest`、`BorrowHighRiskExtensionTest`、`RepairPartialCompensationTest`
+（各自独立内存库）覆盖：等级策略场景/最高时长校验与策略只影响新申请；
+展出中/立项修复中申请拦截、撤展与项目作废后放行、出库时点再校验；
+二三级常规角色链错序/越级/驳回必填意见；一级三级审批链、馆长追加签名
+（`director_sign`/快照馆长签名人）、主管驳回终止无快照；
+批准出库贯通 `t_relic_loan`、归还闭环；归还延期完整重审（含馆长）、
+驳回不改应还时间、通过回写申请与借出单、归还自动驳回在审延期、非在借不可延期；
+保险金额同馆区可见/跨馆区与未声明馆区脱敏（申请、快照、借阅补偿）；
+CONDITIONAL 必带合法等级、无借阅/已批准待出库 RECALL/已归还 SUPPLEMENT_CONFIRM/
+审批中驳回四种补偿对应、两补偿互持 id、RECALL 阻断出库且先闭环、
+等级补偿不得先于借阅补偿闭环、确认时最终等级再更正；全动作台账留痕。

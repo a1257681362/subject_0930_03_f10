@@ -36,6 +36,9 @@ public class Relic extends BaseEntity {
     /** 保存等级 ONE/TWO/THREE */
     private String preservationGrade;
 
+    /** 所属馆区编码（museum-10：借阅审批与保险资料按馆区隔离），默认 MAIN 主馆区 */
+    private String campusCode;
+
     private String description;
 
     /** ACTIVE / REVOKED */

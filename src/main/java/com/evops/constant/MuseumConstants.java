@@ -345,4 +345,66 @@ public final class MuseumConstants {
     public static final String ACTION_TS_APPROVE = "TS_APPROVE";
     public static final String ACTION_TS_RETURN = "TS_RETURN";
     public static final String ACTION_RESCHEDULE_SUGGEST = "RESCHEDULE_SUGGEST";
+
+    // --------------------------------------------------------------------
+    // museum-10 文物借阅审批
+    // --------------------------------------------------------------------
+
+    /** 可借阅场景：馆外展览 / 学术交流 / 科研观摩 / 宣教活动 */
+    public static final String BORROW_SCENE_EXHIBITION = "OUT_EXHIBITION";
+    public static final String BORROW_SCENE_EXCHANGE = "ACADEMIC_EXCHANGE";
+    public static final String BORROW_SCENE_RESEARCH = "RESEARCH";
+    public static final String BORROW_SCENE_EDUCATION = "PUBLIC_EDUCATION";
+
+    /** 借阅审批角色：馆藏部 / 馆藏主管 / 馆长（高风险追加签名） */
+    public static final String BORROW_ROLE_DEPT = "BORROW_DEPT";
+    public static final String BORROW_ROLE_LEADER = "COLLECTION_LEADER";
+    public static final String BORROW_ROLE_DIRECTOR = "DIRECTOR";
+
+    /**
+     * 借阅申请状态：
+     * PENDING 审批中 / APPROVED 已批准待出库 / BORROWED 已出库 / RETURNED 已归还
+     * / REJECTED 已驳回 / CANCELLED 申请人撤销
+     */
+    public static final String BAPP_PENDING = "PENDING";
+    public static final String BAPP_APPROVED = "APPROVED";
+    public static final String BAPP_BORROWED = "BORROWED";
+    public static final String BAPP_RETURNED = "RETURNED";
+    public static final String BAPP_REJECTED = "REJECTED";
+    public static final String BAPP_CANCELLED = "CANCELLED";
+
+    /** 归还延期重新审批状态：PENDING 重新审批中 / APPROVED / REJECTED */
+    public static final String EXT_PENDING = "PENDING";
+    public static final String EXT_APPROVED = "APPROVED";
+    public static final String EXT_REJECTED = "REJECTED";
+
+    /** 借阅审批决定：同意 / 驳回 */
+    public static final String BORROW_DECISION_APPROVE = "APPROVE";
+    public static final String BORROW_DECISION_REJECT = "REJECT";
+
+    /** 补偿记录状态：OPEN 待闭环 / RESOLVED 已闭环 */
+    public static final String COMP_OPEN = "OPEN";
+    public static final String COMP_RESOLVED = "RESOLVED";
+
+    /** 借阅补偿处置方式：在借须提前收回 / 已归还须补充等级与保险差异确认 */
+    public static final String BCOMP_ACTION_RECALL = "RECALL";
+    public static final String BCOMP_ACTION_SUPPLEMENT = "SUPPLEMENT_CONFIRM";
+
+    /** 台账流水动作：借阅申请/审批链/出库/归还/延期重审/撤销/策略变更 */
+    public static final String ACTION_BORROW_APPLY = "BORROW_APPLY";
+    public static final String ACTION_BORROW_APPROVE = "BORROW_APPROVE";
+    public static final String ACTION_BORROW_REJECT = "BORROW_REJECT";
+    public static final String ACTION_BORROW_LEND = "BORROW_LEND";
+    public static final String ACTION_BORROW_RETURN = "BORROW_RETURN";
+    public static final String ACTION_BORROW_EXTEND_SUBMIT = "BORROW_EXTEND_SUBMIT";
+    public static final String ACTION_BORROW_EXTEND_APPROVE = "BORROW_EXTEND_APPROVE";
+    public static final String ACTION_BORROW_EXTEND_REJECT = "BORROW_EXTEND_REJECT";
+    public static final String ACTION_BORROW_CANCEL = "BORROW_CANCEL";
+    public static final String ACTION_BORROW_POLICY_UPDATE = "BORROW_POLICY_UPDATE";
+
+    /** 台账流水动作：部分成功等级补偿 / 借阅补偿 的开立与闭环 */
+    public static final String ACTION_GRADE_COMP_OPEN = "GRADE_COMP_OPEN";
+    public static final String ACTION_GRADE_COMP_RESOLVE = "GRADE_COMP_RESOLVE";
+    public static final String ACTION_BORROW_COMP_OPEN = "BORROW_COMP_OPEN";
+    public static final String ACTION_BORROW_COMP_RESOLVE = "BORROW_COMP_RESOLVE";
 }

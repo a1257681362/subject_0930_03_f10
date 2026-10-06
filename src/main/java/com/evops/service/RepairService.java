@@ -37,6 +37,9 @@ public class RepairService {
     private static final List<String> ACCEPT_RESULTS =
             Arrays.asList(ACCEPT_PASS, ACCEPT_CONDITIONAL);
 
+    private static final List<String> GRADES =
+            Arrays.asList(GRADE_ONE, GRADE_TWO, GRADE_THREE);
+
     private final RepairProjectMapper projectMapper;
     private final RepairStageMapper stageMapper;
     private final RepairAcceptanceMapper acceptanceMapper;
@@ -44,6 +47,7 @@ public class RepairService {
     private final RelicLoanMapper loanMapper;
     private final RelicService relicService;
     private final LedgerService ledgerService;
+    private final RepairCompensationService compensationService;
 
     public RepairService(RepairProjectMapper projectMapper,
                          RepairStageMapper stageMapper,
@@ -51,7 +55,8 @@ public class RepairService {
                          RepairPlanVersionMapper planVersionMapper,
                          RelicLoanMapper loanMapper,
                          RelicService relicService,
-                         LedgerService ledgerService) {
+                         LedgerService ledgerService,
+                         RepairCompensationService compensationService) {
         this.projectMapper = projectMapper;
         this.stageMapper = stageMapper;
         this.acceptanceMapper = acceptanceMapper;
@@ -59,6 +64,7 @@ public class RepairService {
         this.loanMapper = loanMapper;
         this.relicService = relicService;
         this.ledgerService = ledgerService;
+        this.compensationService = compensationService;
     }
 
     @Transactional
@@ -182,6 +188,12 @@ public class RepairService {
         if (!ACCEPT_RESULTS.contains(result)) {
             throw new IllegalArgumentException("验收结论只能为 PASS/CONDITIONAL");
         }
+        // museum-10：附条件通过（部分成功）必须登记验收后保护等级
+        String gradeAfter = req.getGradeAfter() == null ? null : req.getGradeAfter().trim();
+        if (ACCEPT_CONDITIONAL.equals(result)
+                && (gradeAfter == null || !GRADES.contains(gradeAfter))) {
+            throw new IllegalArgumentException("验收附条件通过（部分成功）必须登记验收后保护等级 ONE/TWO/THREE");
+        }
 
         LocalDateTime now = LocalDateTime.now();
         RepairAcceptance acceptance = new RepairAcceptance();
@@ -199,6 +211,13 @@ public class RepairService {
                 ACTION_ACCEPT, project.getProjectNo(),
                 "验收" + (ACCEPT_PASS.equals(result) ? "通过" : "附条件通过")
                         + "，验收人：" + req.getAcceptedBy(), now);
+
+        // 部分成功：等级立即调整并成对开立保护等级/借阅补偿
+        if (ACCEPT_CONDITIONAL.equals(result)) {
+            Relic relic = relicService.requireRelic(project.getRelicId());
+            compensationService.openOnConditionalAccept(project, acceptance,
+                    relic.getPreservationGrade(), gradeAfter, req.getOpinion());
+        }
         return acceptance;
     }
 

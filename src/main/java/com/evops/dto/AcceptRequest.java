@@ -14,4 +14,10 @@ public class AcceptRequest {
     private String result;
 
     private String opinion;
+
+    /**
+     * 附条件通过（CONDITIONAL，部分成功）时登记的验收后保护等级 ONE/TWO/THREE。
+     * CONDITIONAL 必填：立即落到文物档案，并开立保护等级补偿（museum-10）。
+     */
+    private String gradeAfter;
 }

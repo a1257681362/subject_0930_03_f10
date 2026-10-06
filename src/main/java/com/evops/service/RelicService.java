@@ -63,6 +63,8 @@ public class RelicService {
         relic.setEra(req.getEra());
         relic.setSource(req.getSource());
         relic.setPreservationGrade(req.getPreservationGrade());
+        relic.setCampusCode(req.getCampusCode() == null || req.getCampusCode().trim().isEmpty()
+                ? "MAIN" : req.getCampusCode().trim());
         relic.setDescription(req.getDescription());
         relic.setStatus(ACTIVE);
         relicMapper.insert(relic);
