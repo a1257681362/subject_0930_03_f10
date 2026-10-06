@@ -345,4 +345,46 @@ public final class MuseumConstants {
     public static final String ACTION_TS_APPROVE = "TS_APPROVE";
     public static final String ACTION_TS_RETURN = "TS_RETURN";
     public static final String ACTION_RESCHEDULE_SUGGEST = "RESCHEDULE_SUGGEST";
+
+    // --------------------------------------------------------------------
+    // museum-10 文物借阅审批
+    // --------------------------------------------------------------------
+
+    /** 借阅申请类型：首次借阅 / 归还延期（延期须重新审批） */
+    public static final String LAP_TYPE_INITIAL = "INITIAL";
+    public static final String LAP_TYPE_EXTENSION = "EXTENSION";
+
+    /** 借阅申请单状态：审批中 / 已通过 / 已拒绝（拒绝封存只读） */
+    public static final String LAP_APPROVING = "APPROVING";
+    public static final String LAP_APPROVED = "APPROVED";
+    public static final String LAP_REJECTED = "REJECTED";
+
+    /** 借阅场景：展览 / 研究 / 拍摄（各保护等级可借阅场景由配置决定） */
+    public static final String SCENARIO_EXHIBITION = "EXHIBITION";
+    public static final String SCENARIO_RESEARCH = "RESEARCH";
+    public static final String SCENARIO_PHOTOGRAPHY = "PHOTOGRAPHY";
+
+    /** 审批角色：馆藏保管员沿用 ROLE_CURATOR；馆长（高风险文物必须追加其签名） */
+    public static final String ROLE_DIRECTOR = "DIRECTOR";
+
+    /** 审批决定：通过 / 拒绝 */
+    public static final String LOAN_DECISION_APPROVE = "APPROVE";
+    public static final String LOAN_DECISION_REJECT = "REJECT";
+
+    /** 补偿记录侧：保护等级补偿 / 借阅申请补偿（两侧彼此对应） */
+    public static final String COMP_SIDE_GRADE = "GRADE";
+    public static final String COMP_SIDE_LOAN = "LOAN";
+
+    /** 借阅申请补偿动作：时长按新等级上限压缩 / 无需调整；保护等级补偿动作：等级调整 */
+    public static final String COMP_ACTION_CLAMP_DAYS = "CLAMP_DAYS";
+    public static final String COMP_ACTION_NO_CHANGE = "NO_CHANGE";
+    public static final String COMP_ACTION_ADJUST_GRADE = "ADJUST_GRADE";
+
+    /** 台账流水动作：借阅申请 / 审批通过（单步） / 审批拒绝 / 快照生成 / 延期通过 / 补偿登记 */
+    public static final String ACTION_LOAN_APPLY = "LOAN_APPLY";
+    public static final String ACTION_LOAN_APPROVE = "LOAN_APPROVE";
+    public static final String ACTION_LOAN_REJECT = "LOAN_REJECT";
+    public static final String ACTION_LOAN_SNAPSHOT = "LOAN_SNAPSHOT";
+    public static final String ACTION_LOAN_EXTEND = "LOAN_EXTEND";
+    public static final String ACTION_LOAN_COMPENSATE = "LOAN_COMPENSATE";
 }

@@ -5,10 +5,12 @@ import com.evops.constant.MuseumConstants;
 import com.evops.dto.RelicCreateRequest;
 import com.evops.dto.RelicQuery;
 import com.evops.entity.LoanAgreement;
+import com.evops.entity.LoanApplication;
 import com.evops.entity.Relic;
 import com.evops.entity.RelicLoan;
 import com.evops.entity.RepairProject;
 import com.evops.mapper.LoanAgreementMapper;
+import com.evops.mapper.LoanApplicationMapper;
 import com.evops.mapper.RelicLoanMapper;
 import com.evops.mapper.RelicMapper;
 import com.evops.mapper.RepairProjectMapper;
@@ -33,17 +35,20 @@ public class RelicService {
     private final RelicMapper relicMapper;
     private final RelicLoanMapper loanMapper;
     private final LoanAgreementMapper agreementMapper;
+    private final LoanApplicationMapper applicationMapper;
     private final RepairProjectMapper projectMapper;
     private final LedgerService ledgerService;
 
     public RelicService(RelicMapper relicMapper,
                         RelicLoanMapper loanMapper,
                         LoanAgreementMapper agreementMapper,
+                        LoanApplicationMapper applicationMapper,
                         RepairProjectMapper projectMapper,
                         LedgerService ledgerService) {
         this.relicMapper = relicMapper;
         this.loanMapper = loanMapper;
         this.agreementMapper = agreementMapper;
+        this.applicationMapper = applicationMapper;
         this.projectMapper = projectMapper;
         this.ledgerService = ledgerService;
     }
@@ -135,6 +140,13 @@ public class RelicService {
                         PROJECT_PLANNED, PROJECT_REPAIRING, PROJECT_REPAIRED));
         if (openProjects != null && openProjects > 0) {
             throw new IllegalArgumentException("文物存在未验收/未作废的修复项目，不能撤销");
+        }
+        // museum-10：审批中的借阅申请未闭环，同样不允许撤销
+        Long approvingCount = applicationMapper.selectCount(new LambdaQueryWrapper<LoanApplication>()
+                .eq(LoanApplication::getRelicId, id)
+                .eq(LoanApplication::getStatus, LAP_APPROVING));
+        if (approvingCount != null && approvingCount > 0) {
+            throw new IllegalArgumentException("文物存在审批中的借阅申请，不能撤销");
         }
         relic.setStatus(REVOKED);
         relic.setRevokeReason(reason);

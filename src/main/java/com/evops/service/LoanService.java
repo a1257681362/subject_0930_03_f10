@@ -4,9 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.evops.dto.LoanRequest;
 import com.evops.dto.ReturnRequest;
 import com.evops.entity.LoanAgreement;
+import com.evops.entity.LoanApplication;
 import com.evops.entity.Relic;
 import com.evops.entity.RelicLoan;
 import com.evops.mapper.LoanAgreementMapper;
+import com.evops.mapper.LoanApplicationMapper;
 import com.evops.mapper.RelicLoanMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,15 +27,18 @@ public class LoanService {
 
     private final RelicLoanMapper loanMapper;
     private final LoanAgreementMapper agreementMapper;
+    private final LoanApplicationMapper applicationMapper;
     private final RelicService relicService;
     private final LedgerService ledgerService;
 
     public LoanService(RelicLoanMapper loanMapper,
                        LoanAgreementMapper agreementMapper,
+                       LoanApplicationMapper applicationMapper,
                        RelicService relicService,
                        LedgerService ledgerService) {
         this.loanMapper = loanMapper;
         this.agreementMapper = agreementMapper;
+        this.applicationMapper = applicationMapper;
         this.relicService = relicService;
         this.ledgerService = ledgerService;
     }
@@ -58,6 +63,14 @@ public class LoanService {
                 .notIn(LoanAgreement::getStatus, AGR_RETURNED, AGR_CANCELLED));
         if (openAgreementCount != null && openAgreementCount > 0) {
             throw new IllegalArgumentException("文物存在未闭环借展协议，不能通过旧借出通道重复借出: "
+                    + relic.getRelicNo());
+        }
+        // museum-10：审批中的借阅申请同样占用文物，旧通道不能抢借
+        Long approvingCount = applicationMapper.selectCount(new LambdaQueryWrapper<LoanApplication>()
+                .eq(LoanApplication::getRelicId, req.getRelicId())
+                .eq(LoanApplication::getStatus, LAP_APPROVING));
+        if (approvingCount != null && approvingCount > 0) {
+            throw new IllegalArgumentException("文物存在审批中的借阅申请，不能通过旧借出通道重复借出: "
                     + relic.getRelicNo());
         }
 

@@ -12,6 +12,7 @@ import com.evops.dto.ReturnCheckRequest;
 import com.evops.entity.EscortNode;
 import com.evops.entity.LoanAgreement;
 import com.evops.entity.LoanAgreementVersion;
+import com.evops.entity.LoanApplication;
 import com.evops.entity.LoanManifestLine;
 import com.evops.entity.LoanReturnCheck;
 import com.evops.entity.LoanReturnCheckLine;
@@ -21,6 +22,7 @@ import com.evops.entity.RepairProject;
 import com.evops.mapper.EscortNodeMapper;
 import com.evops.mapper.LoanAgreementMapper;
 import com.evops.mapper.LoanAgreementVersionMapper;
+import com.evops.mapper.LoanApplicationMapper;
 import com.evops.mapper.LoanManifestLineMapper;
 import com.evops.mapper.LoanReturnCheckLineMapper;
 import com.evops.mapper.LoanReturnCheckMapper;
@@ -74,6 +76,7 @@ public class LoanExhibitionService {
     private final LoanReturnCheckLineMapper checkLineMapper;
     private final RelicLoanMapper relicLoanMapper;
     private final RepairProjectMapper projectMapper;
+    private final LoanApplicationMapper applicationMapper;
     private final RelicService relicService;
     private final LedgerService ledgerService;
 
@@ -85,6 +88,7 @@ public class LoanExhibitionService {
                                  LoanReturnCheckLineMapper checkLineMapper,
                                  RelicLoanMapper relicLoanMapper,
                                  RepairProjectMapper projectMapper,
+                                 LoanApplicationMapper applicationMapper,
                                  RelicService relicService,
                                  LedgerService ledgerService) {
         this.agreementMapper = agreementMapper;
@@ -95,6 +99,7 @@ public class LoanExhibitionService {
         this.checkLineMapper = checkLineMapper;
         this.relicLoanMapper = relicLoanMapper;
         this.projectMapper = projectMapper;
+        this.applicationMapper = applicationMapper;
         this.relicService = relicService;
         this.ledgerService = ledgerService;
     }
@@ -127,6 +132,14 @@ public class LoanExhibitionService {
                 .eq(RelicLoan::getStatus, LOAN_LENT));
         if (openLoanCount != null && openLoanCount > 0) {
             throw new IllegalArgumentException("文物仍有借出未归还，不能登记借展协议: " + relic.getRelicNo());
+        }
+        // museum-10：审批中的借阅申请同样占用文物，协议登记不能抢借
+        Long approvingCount = applicationMapper.selectCount(new LambdaQueryWrapper<LoanApplication>()
+                .eq(LoanApplication::getRelicId, req.getRelicId())
+                .eq(LoanApplication::getStatus, LAP_APPROVING));
+        if (approvingCount != null && approvingCount > 0) {
+            throw new IllegalArgumentException("文物存在审批中的借阅申请，不能登记借展协议: "
+                    + relic.getRelicNo());
         }
 
         LocalDateTime now = LocalDateTime.now();

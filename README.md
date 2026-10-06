@@ -521,3 +521,57 @@ mvn test
 文物置为无效（REVOKED）后页面/导出/后台统计默认同口径剔除、
 `includeRevoked=true` 三端同样保留并标明 REVOKED、页面行数=导出行数、页面工时总量=统计总量；
 台账全动作留痕（TS_SUBMIT/TS_RETURN/TS_APPROVE/RESCHEDULE_SUGGEST）。
+
+## 文物借阅审批（museum-10）
+
+文物借阅按**保护等级**配置可借阅场景、最高时长与审批角色链；申请时校验**当前展陈计划与修复状态**；
+**高风险文物（一级）审批链尾自动追加馆长（DIRECTOR）签名**；审批通过生成**借阅快照**并贯通借出；
+**归还延期必须重新审批**；**审批人不能查看不属于自己馆区的完整保险资料**；
+修复部分成功（CONDITIONAL 验收）时，**保护等级与借阅申请的补偿记录彼此对应**。
+
+### 借阅审批规则
+
+- **按等级配置**：`museum.loan-approval.*` 按 ONE/TWO/THREE 配置可借阅场景
+  （EXHIBITION 展览 / RESEARCH 研究 / PHOTOGRAPHY 拍摄）、最高借阅天数与审批角色链；
+  一级默认仅 RESEARCH、30 天，三级默认三种场景、180 天。场景越界、天数超上限一律拒绝。
+- **申请五项校验**：文物在档、场景与天数合规、**不在展陈中**（`t_hall_relic` ON_DISPLAY）、
+  **无未闭环修复项目**（PLANNED/REPAIRING/REPAIRED）、无在途借出/未闭环借展协议/审批中申请。
+  保存等级与保险资料（保险金额/承保公司/保单号）随申请固化快照。
+- **审批链按序签署**：审批链 = 配置角色链；高风险等级（默认 ONE）链尾自动追加馆长 DIRECTOR。
+  乱序签署拒绝；任一级 REJECT 申请单即封存 REJECTED 只读；末步 APPROVE 时**重跑**
+  展陈/修复/占用校验（申请后状态可能已变），通过才放行。
+- **通过生成借阅快照**：`t_loan_snapshot` 固化文物（编号/名称/等级/材质）、场景、批准天数、
+  保险资料与完整审批链（角色:实签人），只追加不改写；同时写 `t_relic_loan(LENT)`
+  （单号=申请单号），修复开工、文物撤销、重复借出继续被 museum-1 跨业务校验拦截。
+- **归还延期重新审批**：延期登记 EXTENSION 子单（继承首借单馆区/场景/保险），
+  延期天数同样受等级最高时长约束，重新走完整审批链；通过后借出单应还日期顺延并生成延期快照；
+  拒绝不影响原借出。借出单已归还后不能再延期。
+- **保险资料按馆区脱敏**：`?hallId=` 声明查看者馆区（沿用 `?role=` 传参方式）——
+  与申请单馆区一致可见完整保险资料；他馆区或未声明一律脱敏
+  （保险金额/保单号置空、承保公司显示 `***`、`insuranceMasked=true`），列表/详情/快照同一口径。
+- **修复部分成功的成对补偿**：CONDITIONAL 验收时按 `conditional-grade-adjust` 调整文物保护等级
+  （默认 THREE→TWO、TWO→ONE），写一条 GRADE 侧补偿；该文物每条审批中申请按新等级上限
+  压缩借阅天数，各写一条 LOAN 侧补偿——**同次事件共享补偿单号（CP-项目号），
+  LOAN 行 pair_id 指向 GRADE 行，彼此对应**；补偿查询按单号成对返回。
+- 申请/逐级审批/拒绝/快照/延期/补偿全部只追加写入 `t_relic_ledger` 留痕。
+
+### 借阅审批接口
+
+| 方法与路径 | 作用 |
+| --- | --- |
+| `POST /api/loan-applications` | 借阅申请（场景/时长/展陈/修复/占用五项校验） |
+| `GET  /api/loan-applications?relicId=&status=&hallId=` | 申请列表（保险按馆区脱敏） |
+| `GET  /api/loan-applications/{id}?hallId=` | 详情：申请+审批记录+快照（含延期子单快照）+贯通借出单+延期子单 |
+| `POST /api/loan-applications/{id}/approve` | 逐级审批（按链顺序；REJECT 封存只读） |
+| `POST /api/loan-applications/{id}/extensions` | 归还延期申请（EXTENSION 子单，重走审批链） |
+| `GET  /api/loan-compensations?relicId=` | 补偿记录（按补偿单号成对返回 GRADE/LOAN） |
+
+### 测试
+
+`LoanApprovalTest`（独立内存库）覆盖：场景/时长越限拒绝；展陈中与修复未闭环拒绝、撤展/作废后放行；
+审批中申请占用口径（重复申请/旧通道借出/协议登记/撤销均拦截）；
+一级链 CURATOR→DIRECTOR 乱序拒绝、馆长签署通过；通过后快照固化与 LENT 贯通（开工/撤销拦截）；
+保险资料本馆区完整/他馆区与未声明脱敏；延期超上限拒绝、通过后应还日期顺延与延期快照；
+REJECT 封存只读；CONDITIONAL 验收后等级 THREE→TWO、审批中申请 180→90 天压缩、
+GRADE/LOAN 补偿同单号且 pair_id 互指、查询成对可见、快照仍固化申请时等级；
+归还后不能再延期；台账动作链完整（LOAN_APPLY/LOAN_APPROVE/LOAN_REJECT/LOAN_SNAPSHOT/LOAN_EXTEND/LOAN_COMPENSATE）。

@@ -44,6 +44,7 @@ public class RepairService {
     private final RelicLoanMapper loanMapper;
     private final RelicService relicService;
     private final LedgerService ledgerService;
+    private final LoanCompensationService loanCompensationService;
 
     public RepairService(RepairProjectMapper projectMapper,
                          RepairStageMapper stageMapper,
@@ -51,7 +52,8 @@ public class RepairService {
                          RepairPlanVersionMapper planVersionMapper,
                          RelicLoanMapper loanMapper,
                          RelicService relicService,
-                         LedgerService ledgerService) {
+                         LedgerService ledgerService,
+                         LoanCompensationService loanCompensationService) {
         this.projectMapper = projectMapper;
         this.stageMapper = stageMapper;
         this.acceptanceMapper = acceptanceMapper;
@@ -59,6 +61,7 @@ public class RepairService {
         this.loanMapper = loanMapper;
         this.relicService = relicService;
         this.ledgerService = ledgerService;
+        this.loanCompensationService = loanCompensationService;
     }
 
     @Transactional
@@ -199,6 +202,11 @@ public class RepairService {
                 ACTION_ACCEPT, project.getProjectNo(),
                 "验收" + (ACCEPT_PASS.equals(result) ? "通过" : "附条件通过")
                         + "，验收人：" + req.getAcceptedBy(), now);
+
+        // museum-10：修复部分成功（附条件通过）触发保护等级与借阅申请的成对补偿
+        if (ACCEPT_CONDITIONAL.equals(result)) {
+            loanCompensationService.compensateOnConditionalAccept(project);
+        }
         return acceptance;
     }
 

@@ -67,6 +67,30 @@ museum:
     # 预约超时释放定时扫描间隔（毫秒）；重启后启动即补扫一次
     expire-scan-interval-ms: 60000
     expire-scan-on-startup: true
+  # 文物借阅审批（museum-10）
+  loan-approval:
+    # 各保护等级可借阅场景：EXHIBITION 展览 / RESEARCH 研究 / PHOTOGRAPHY 拍摄
+    scenarios:
+      ONE: RESEARCH
+      TWO: EXHIBITION,RESEARCH
+      THREE: EXHIBITION,RESEARCH,PHOTOGRAPHY
+    # 各保护等级最高借阅时长（天）
+    max-days:
+      ONE: 30
+      TWO: 90
+      THREE: 180
+    # 各保护等级审批角色链（按序审批）
+    approval-roles:
+      ONE: CURATOR
+      TWO: CURATOR
+      THREE: CURATOR
+    # 高风险等级：审批链尾自动追加馆长 DIRECTOR 签名
+    high-risk-grades: ONE
+    # 修复部分成功（CONDITIONAL 验收）后的保护等级补偿目标
+    conditional-grade-adjust:
+      ONE: ONE
+      TWO: ONE
+      THREE: TWO
 
 mybatis-plus:
   mapper-locations: classpath*:mapper/**/*.xml
